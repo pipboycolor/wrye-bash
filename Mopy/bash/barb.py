@@ -25,6 +25,7 @@
 """Rollback library."""
 
 import cPickle
+from os.path import join as _j
 
 import archives
 import bash
@@ -36,6 +37,38 @@ from . import images_list
 from bolt import BoltError, AbstractError, GPath, deprint
 from balt import askSave, askOpen, askWarning, showError, showWarning, \
     showInfo, Link, BusyCursor
+
+
+def init_settings_files(): # clean this up further ! see ##?
+    game, dirs = bush.game.fsName, bass.dirs
+    data_bash, data_docs = dirs['mods'].join(u'Bash'), dirs['mods'].join(u'Docs')
+    mods_data_inis = dirs['modsBash'].join(u'INI Data')
+    settings_info = [
+    (dirs['mopy'],     u'bash.ini',                 _j(game, u'Mopy')),
+    (data_bash,        u'Table.dat',                _j(game, u'Data',u'Bash')),
+    (data_docs,        u'Bash Readme Template.txt', _j(game, u'Data',u'Docs')),
+    (data_docs,        u'Bash Readme Template.html', _j(game, u'Data',u'Docs')),
+    (data_docs,        u'My Readme Template.txt',    _j(game, u'Data',u'Docs')),
+    (data_docs,        u'My Readme Template.html', _j(game, u'Data',u'Docs')),
+    (data_docs,        u'Bashed Lists',         _j(game, u'Data',u'Docs')), ##?
+    (data_docs,        u'wtxt_sand_small.css',  _j(game, u'Data',u'Docs')),
+    (data_docs,        u'wtxt_teal.css',        _j(game, u'Data',u'Docs')),
+    (dirs['modsBash'], u'Table.dat',      _j(game+ u' Mods',u'Bash Mod Data')),
+    (mods_data_inis,   u'Table.dat',      _j(game+ u' Mods',u'Bash Mod Data',u'INI Data')),
+    (dirs['bainData'], u'Converters.dat', _j(game+ u' Mods',u'Bash Installers',u'Bash')),
+    (dirs['bainData'], u'Installers.dat', _j(game+ u' Mods',u'Bash Installers',u'Bash')),
+    (dirs['userApp'],  u'Profiles',             u'LocalAppData\\'+game), ##?
+    (dirs['userApp'],  u'bash config',          u'LocalAppData\\'+game), ##?
+    (dirs['saveBase'], u'BashProfiles.dat',     _j(u'My Games', game)),
+    (dirs['saveBase'], u'BashSettings.dat',     _j(u'My Games', game)),
+    (dirs['saveBase'], u'BashLoadOrders.dat',   _j(u'My Games', game)),
+    (dirs['saveBase'], u'ModeBase',             _j(u'My Games', game)),
+    (dirs['saveBase'], u'People.dat',           _j(u'My Games', game)),
+    ]
+    for folder, name, dest in tuple(settings_info):
+        if name.endswith(u'.dat'): # add corresponding bak file
+            settings_info.append((folder, name[-3:] + u'bak', dest))
+    return settings_info
 
 #------------------------------------------------------------------------------
 class BackupCancelled(BoltError):
@@ -82,19 +115,15 @@ class BackupSettings(BaseBackupSettings):
               (dirs['mopy'],                      u'bash.ini',             game+u'\\Mopy'),
               (dirs['mods'].join(u'Bash'),        u'Table',                game+u'\\Data\\Bash'),
               (dirs['mods'].join(u'Docs'),        u'Bash Readme Template', game+u'\\Data\\Docs'),
-              (dirs['mods'].join(u'Docs'),        u'Bashed Lists',         game+u'\\Data\\Docs'),
               (dirs['mods'].join(u'Docs'),        u'wtxt_sand_small.css',  game+u'\\Data\\Docs'),
               (dirs['mods'].join(u'Docs'),        u'wtxt_teal.css',        game+u'\\Data\\Docs'),
               (dirs['modsBash'],                  u'Table',                game+u' Mods\\Bash Mod Data'),
               (dirs['modsBash'].join(u'INI Data'),u'Table',                game+u' Mods\\Bash Mod Data\\INI Data'),
               (dirs['bainData'],                  u'Converters',           game+u' Mods\\Bash Installers\\Bash'),
               (dirs['bainData'],                  u'Installers',           game+u' Mods\\Bash Installers\\Bash'),
-              (dirs['userApp'],                   u'Profiles',             u'LocalAppData\\'+game),
-              (dirs['userApp'],                   u'bash config',          u'LocalAppData\\'+game),
               (dirs['saveBase'],                  u'BashProfiles',         u'My Games\\'+game),
               (dirs['saveBase'],                  u'BashSettings',         u'My Games\\'+game),
               (dirs['saveBase'],                  u'BashLoadOrders',       u'My Games\\'+game),
-              (dirs['saveBase'],                  u'ModeBase',             u'My Games\\'+game),
               (dirs['saveBase'],                  u'People',               u'My Games\\'+game),
                 ):
             tmpdir = GPath(tmpdir)
@@ -106,9 +135,9 @@ class BackupSettings(BaseBackupSettings):
 
         #backup all files in Mopy\Data, Data\Bash Patches\ and Data\INI Tweaks
         for path, tmpdir in (
-              (dirs['l10n'],                      game+u'\\Mopy\\bash\\l10n'),
-              (dirs['mods'].join(u'Bash Patches'),game+u'\\Data\\Bash Patches'),
-              (dirs['mods'].join(u'INI Tweaks'),  game+u'\\Data\\INI Tweaks'),
+              (dirs['l10n'],                      _j(game, u'Mopy', u'bash', u'l10n')),
+              (dirs['mods'].join(u'Bash Patches'),_j(game, u'Data', u'Bash Patches')),
+              (dirs['mods'].join(u'INI Tweaks'),  _j(game, u'Data', u'INI Tweaks')),
                 ):
             tmpdir = GPath(tmpdir)
             for name in path.list():
@@ -122,7 +151,7 @@ class BackupSettings(BaseBackupSettings):
             return True
         if backup_images: # 1 is changed images only, 2 is all images
             onlyChanged = backup_images == 1
-            tmpdir = GPath(game+u'\\Mopy\\bash\\images')
+            tmpdir = GPath(_j(game, u'Mopy', u'bash', u'images'))
             path = dirs['images']
             for name in path.list():
                 fullname = path.join(name)
@@ -195,16 +224,16 @@ class BackupSettings(BaseBackupSettings):
         return True
 
     def WarnFailed(self):
-        showWarning(self.parent,
-            _(u'There was an error while trying to backup the Bash settings!')+u'\n' +
-            _(u'No backup was created.'),
+        showWarning(self.parent, u'\n'.join([
+            _(u'There was an error while trying to backup the Bash settings!'),
+            _(u'No backup was created.')]),
             _(u'Unable to create backup!'))
 
     def InfoSuccess(self):
         if self.quit: return
-        showInfo(self.parent,
-            _(u'Your Bash settings have been backed up successfully.')+u'\n' +
-            _(u'Backup Path: ')+self._dir.join(self.archive).s+u'\n',
+        showInfo(self.parent, u'\n'.join([
+            _(u'Your Bash settings have been backed up successfully.'),
+            _(u'Backup Path: ') + self._dir.join(self.archive).s]), # +u'\n' ?
             _(u'Backup File Created'))
 
 #------------------------------------------------------------------------------
