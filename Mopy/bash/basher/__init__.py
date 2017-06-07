@@ -2544,7 +2544,8 @@ class InstallersDetails(_DetailsMixin, SashPanel):
         #--Comments
         commentsPanel = wx.Panel(bottom)
         commentsLabel = StaticText(commentsPanel, _(u'Comments'))
-        self.gComments = TextCtrl(commentsPanel, multiline=True)
+        self.gComments = TextCtrl(commentsPanel, multiline=True,
+                                  autotooltip=False)
         #--Splitter settings
         self.checkListSplitter.SetMinimumPaneSize(50)
         self.checkListSplitter.SplitVertically(subPackagesPanel, espmsPanel)
