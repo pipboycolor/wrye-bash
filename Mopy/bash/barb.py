@@ -38,6 +38,7 @@ from bolt import BoltError, AbstractError, GPath, deprint
 from balt import askSave, askOpen, askWarning, showError, showWarning, \
     showInfo, Link, BusyCursor
 
+opts = None # command line arguments used when launching Bash, set on bash
 
 def init_settings_files(): # clean this up further ! see ##?
     game, dirs = bush.game.fsName, bass.dirs
@@ -249,7 +250,6 @@ class RestoreSettings(BaseBackupSettings):
         # reinitialize bass.dirs using the backup copy of bash.ini if it exists
         game, dirs = bush.game.fsName, bass.dirs
         tmpBash = temp_dir.join(game+u'\\Mopy\\bash.ini')
-        opts = bash.opts
 
         bash.SetUserPath(tmpBash.s,opts.userPath)
 
