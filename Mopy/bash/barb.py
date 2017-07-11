@@ -50,15 +50,12 @@ def init_settings_files(): # clean this up further ! see ##?
     (data_docs,        u'Bash Readme Template.html', _j(game, u'Data',u'Docs')),
     (data_docs,        u'My Readme Template.txt',    _j(game, u'Data',u'Docs')),
     (data_docs,        u'My Readme Template.html', _j(game, u'Data',u'Docs')),
-    (data_docs,        u'Bashed Lists',         _j(game, u'Data',u'Docs')), ##?
     (data_docs,        u'wtxt_sand_small.css',  _j(game, u'Data',u'Docs')),
     (data_docs,        u'wtxt_teal.css',        _j(game, u'Data',u'Docs')),
     (dirs['modsBash'], u'Table.dat',      _j(game+ u' Mods',u'Bash Mod Data')),
     (mods_data_inis,   u'Table.dat',      _j(game+ u' Mods',u'Bash Mod Data',u'INI Data')),
     (dirs['bainData'], u'Converters.dat', _j(game+ u' Mods',u'Bash Installers',u'Bash')),
     (dirs['bainData'], u'Installers.dat', _j(game+ u' Mods',u'Bash Installers',u'Bash')),
-    (dirs['userApp'],  u'Profiles',             u'LocalAppData\\'+game), ##?
-    (dirs['userApp'],  u'bash config',          u'LocalAppData\\'+game), ##?
     (dirs['saveBase'], u'BashProfiles.dat',     _j(u'My Games', game)),
     (dirs['saveBase'], u'BashSettings.dat',     _j(u'My Games', game)),
     (dirs['saveBase'], u'BashLoadOrders.dat',   _j(u'My Games', game)),
@@ -111,27 +108,9 @@ class BackupSettings(BaseBackupSettings):
     def __init__(self, parent=None, path=None, do_quit=False, backup_images=None):
         BaseBackupSettings.__init__(self, parent, path, do_quit)
         game, dirs = bush.game.fsName, bass.dirs
-        for path, name, tmpdir in (
-              (dirs['mopy'],                      u'bash.ini',             game+u'\\Mopy'),
-              (dirs['mods'].join(u'Bash'),        u'Table',                game+u'\\Data\\Bash'),
-              (dirs['mods'].join(u'Docs'),        u'Bash Readme Template', game+u'\\Data\\Docs'),
-              (dirs['mods'].join(u'Docs'),        u'wtxt_sand_small.css',  game+u'\\Data\\Docs'),
-              (dirs['mods'].join(u'Docs'),        u'wtxt_teal.css',        game+u'\\Data\\Docs'),
-              (dirs['modsBash'],                  u'Table',                game+u' Mods\\Bash Mod Data'),
-              (dirs['modsBash'].join(u'INI Data'),u'Table',                game+u' Mods\\Bash Mod Data\\INI Data'),
-              (dirs['bainData'],                  u'Converters',           game+u' Mods\\Bash Installers\\Bash'),
-              (dirs['bainData'],                  u'Installers',           game+u' Mods\\Bash Installers\\Bash'),
-              (dirs['saveBase'],                  u'BashProfiles',         u'My Games\\'+game),
-              (dirs['saveBase'],                  u'BashSettings',         u'My Games\\'+game),
-              (dirs['saveBase'],                  u'BashLoadOrders',       u'My Games\\'+game),
-              (dirs['saveBase'],                  u'People',               u'My Games\\'+game),
-                ):
-            tmpdir = GPath(tmpdir)
-            for ext in (u'',u'.dat',u'.pkl',u'.html',u'.txt'): # hack so the above file list can be shorter, could include rogue files but not very likely
-                tpath = tmpdir.join(name+ext)
-                fpath = path.join(name+ext)
-                if fpath.exists(): self.files[tpath] = fpath
-                if fpath.backup.exists(): self.files[tpath.backup] = fpath.backup
+        for path, name, tmpdir in init_settings_files():
+            fpath = path.join(name)
+            if fpath.exists(): self.files[GPath(tmpdir).join(name)] = fpath
 
         #backup all files in Mopy\Data, Data\Bash Patches\ and Data\INI Tweaks
         for path, tmpdir in (
