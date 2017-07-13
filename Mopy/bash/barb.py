@@ -25,7 +25,7 @@
 """Rollback library."""
 
 import cPickle
-from os.path import join as _j
+from os.path import join as jo
 
 import archives
 import bash
@@ -40,32 +40,42 @@ from balt import askSave, askOpen, askWarning, showError, showWarning, \
 
 opts = None # command line arguments used when launching Bash, set on bash
 
-def init_settings_files(): # clean this up further ! see ##?
+def init_settings_files():
+    """Construct a dict mapping directory paths to setting files. Keys are
+    tuples of absolute paths to directories, paired with the relative paths
+    in the backup file. Values are sets of setting files in those paths,
+    or empty, meaning we have to list those paths and backup everything."""
     game, dirs = bush.game.fsName, bass.dirs
-    data_bash, data_docs = dirs['mods'].join(u'Bash'), dirs['mods'].join(u'Docs')
-    mods_data_inis = dirs['modsBash'].join(u'INI Data')
-    settings_info = [
-    (dirs['mopy'],     u'bash.ini',                 _j(game, u'Mopy')),
-    (data_bash,        u'Table.dat',                _j(game, u'Data',u'Bash')),
-    (data_docs,        u'Bash Readme Template.txt', _j(game, u'Data',u'Docs')),
-    (data_docs,        u'Bash Readme Template.html', _j(game, u'Data',u'Docs')),
-    (data_docs,        u'My Readme Template.txt',    _j(game, u'Data',u'Docs')),
-    (data_docs,        u'My Readme Template.html', _j(game, u'Data',u'Docs')),
-    (data_docs,        u'wtxt_sand_small.css',  _j(game, u'Data',u'Docs')),
-    (data_docs,        u'wtxt_teal.css',        _j(game, u'Data',u'Docs')),
-    (dirs['modsBash'], u'Table.dat',      _j(game+ u' Mods',u'Bash Mod Data')),
-    (mods_data_inis,   u'Table.dat',      _j(game+ u' Mods',u'Bash Mod Data',u'INI Data')),
-    (dirs['bainData'], u'Converters.dat', _j(game+ u' Mods',u'Bash Installers',u'Bash')),
-    (dirs['bainData'], u'Installers.dat', _j(game+ u' Mods',u'Bash Installers',u'Bash')),
-    (dirs['saveBase'], u'BashProfiles.dat',     _j(u'My Games', game)),
-    (dirs['saveBase'], u'BashSettings.dat',     _j(u'My Games', game)),
-    (dirs['saveBase'], u'BashLoadOrders.dat',   _j(u'My Games', game)),
-    (dirs['saveBase'], u'ModeBase',             _j(u'My Games', game)),
-    (dirs['saveBase'], u'People.dat',           _j(u'My Games', game)),
-    ]
-    for folder, name, dest in tuple(settings_info):
-        if name.endswith(u'.dat'): # add corresponding bak file
-            settings_info.append((folder, name[-3:] + u'bak', dest))
+    settings_info = {
+        (dirs['mopy'], jo(game, u'Mopy')): {u'bash.ini', },
+        (dirs['mods'].join(u'Bash'), jo(game, u'Data', u'Bash')): {
+            u'Table.dat', },
+        (dirs['mods'].join(u'Docs'), jo(game, u'Data', u'Docs')): {
+            u'Bash Readme Template.txt', u'Bash Readme Template.html',
+            u'My Readme Template.txt', u'My Readme Template.html',
+            u'wtxt_sand_small.css', u'wtxt_teal.css', },
+        (dirs['modsBash'], jo(game + u' Mods', u'Bash Mod Data')): {
+            u'Table.dat', },
+        (dirs['modsBash'].join(u'INI Data'),
+         jo(game + u' Mods', u'Bash Mod Data', u'INI Data')): {
+           u'Table.dat', },
+        (dirs['bainData'], jo(game + u' Mods', u'Bash Installers', u'Bash')): {
+           u'Converters.dat', u'Installers.dat', },
+        (dirs['saveBase'], jo(u'My Games', game)): {
+            u'BashProfiles.dat', u'BashSettings.dat', u'BashLoadOrders.dat',
+            u'People.dat', },
+        # backup all files in Mopy\bash\l10n, Data\Bash Patches\ and
+        # Data\INI Tweaks\
+        (dirs['l10n'], jo(game, u'Mopy', u'bash', u'l10n')): {},
+        (dirs['mods'].join(u'Bash Patches'),
+         jo(game, u'Data', u'Bash Patches')): {},
+        (dirs['mods'].join(u'INI Tweaks'),
+         jo(game, u'Data', u'INI Tweaks')): {},
+    }
+    for setting_files in settings_info.itervalues():
+        for name in set(setting_files):
+            if name.endswith(u'.dat'): # add corresponding bak file
+                setting_files.add(name[:-3] + u'bak')
     return settings_info
 
 #------------------------------------------------------------------------------
@@ -109,20 +119,14 @@ class BackupSettings(BaseBackupSettings):
     def __init__(self, parent=None, path=None, do_quit=False, backup_images=None):
         BaseBackupSettings.__init__(self, parent, path, do_quit)
         game, dirs = bush.game.fsName, bass.dirs
-        for path, name, tmpdir in init_settings_files():
-            fpath = path.join(name)
-            if fpath.exists(): self.files[GPath(tmpdir).join(name)] = fpath
-
-        #backup all files in Mopy\Data, Data\Bash Patches\ and Data\INI Tweaks
-        for path, tmpdir in (
-              (dirs['l10n'],                      _j(game, u'Mopy', u'bash', u'l10n')),
-              (dirs['mods'].join(u'Bash Patches'),_j(game, u'Data', u'Bash Patches')),
-              (dirs['mods'].join(u'INI Tweaks'),  _j(game, u'Data', u'INI Tweaks')),
-                ):
-            tmpdir = GPath(tmpdir)
-            for name in path.list():
-                if path.join(name).isfile():
-                    self.files[tmpdir.join(name)] = path.join(name)
+        for (path, tmpdir), settings in init_settings_files().iteritems():
+            if not settings: # we have to backup everything in there
+                settings = path.list()
+            tmp_dir = GPath(tmpdir)
+            for name in settings:
+                fpath = path.join(name)
+                if fpath.exists():
+                    self.files[tmp_dir.join(name)] = fpath
 
         #backup image files if told to
         def _isChanged(ab_path, rel_path):
@@ -131,7 +135,7 @@ class BackupSettings(BaseBackupSettings):
             return True
         if backup_images: # 1 is changed images only, 2 is all images
             onlyChanged = backup_images == 1
-            tmpdir = GPath(_j(game, u'Mopy', u'bash', u'images'))
+            tmpdir = GPath(jo(game, u'Mopy', u'bash', u'images'))
             path = dirs['images']
             for name in path.list():
                 fullname = path.join(name)
@@ -185,7 +189,11 @@ class BackupSettings(BaseBackupSettings):
             command = archives.compressCommand(self.archive, self._dir, temp_dir)
             archives.compress7z(command, self._dir, self.archive, temp_dir)
             bass.settings['bash.backupPath'] = self._dir
-        self.InfoSuccess()
+        if self.quit: return
+        showInfo(self.parent, u'\n'.join([
+            _(u'Your Bash settings have been backed up successfully.'),
+            _(u'Backup Path: ') + self._dir.join(self.archive).s]), # +u'\n' ?
+            _(u'Backup File Created'))
 
     def PromptFile(self):
         """Prompt for backup filename - return False if user cancels."""
@@ -208,13 +216,6 @@ class BackupSettings(BaseBackupSettings):
             _(u'There was an error while trying to backup the Bash settings!'),
             _(u'No backup was created.')]),
             _(u'Unable to create backup!'))
-
-    def InfoSuccess(self):
-        if self.quit: return
-        showInfo(self.parent, u'\n'.join([
-            _(u'Your Bash settings have been backed up successfully.'),
-            _(u'Backup Path: ') + self._dir.join(self.archive).s]), # +u'\n' ?
-            _(u'Backup File Created'))
 
 #------------------------------------------------------------------------------
 class RestoreSettings(BaseBackupSettings):
@@ -257,31 +258,9 @@ class RestoreSettings(BaseBackupSettings):
         bosh.initBosh(opts.personalPath, opts.localAppDataPath, bashIni)
 
         # restore all the settings files
-        restore_paths = (
-                (dirs['mopy'],                      game+u'\\Mopy'),
-                (dirs['mods'].join(u'Bash'),        game+u'\\Data\\Bash'),
-                (dirs['mods'].join(u'Bash Patches'),game+u'\\Data\\Bash Patches'),
-                (dirs['mods'].join(u'Docs'),        game+u'\\Data\\Docs'),
-                (dirs['mods'].join(u'INI Tweaks'),  game+u'\\Data\\INI Tweaks'),
-                (dirs['modsBash'],                  game+u' Mods\\Bash Mod Data'),
-                (dirs['modsBash'].join(u'INI Data'),game+u' Mods\\Bash Mod Data\\INI Data'),
-                (dirs['bainData'],                  game+u' Mods\\Bash Installers\\Bash'),
-                (dirs['userApp'],                   u'LocalAppData\\'+game),
-                (dirs['saveBase'],                  u'My Games\\'+game),
-                )
-        if 293 >= self.verApp:
-            # restore from old data paths
-            restore_paths += (
-                (dirs['l10n'],                      game+u'\\Data'),)
-            if self.restore_images:
-                restore_paths += (
-                    (dirs['images'],                game+u'\\Mopy\\images'),)
-        else:
-            restore_paths += (
-                (dirs['l10n'],                      game+u'\\bash\\l10n'),)
-            if self.restore_images:
-                restore_paths += (
-                    (dirs['images'],                game+u'\\Mopy\\bash\\images'),)
+        restore_paths = init_settings_files().keys()
+        if self.restore_images:
+            restore_paths += [(dirs['images'], game + u'\\Mopy\\bash\\images')]
         for fpath, tpath in restore_paths:
             path = temp_dir.join(tpath)
             if path.exists():
@@ -337,7 +316,6 @@ class RestoreSettings(BaseBackupSettings):
                   _(u'You cannot use this backup with this version of Bash.'),
                   _(u'Error: Version Conflict!'))
             return True
-        #end if
         return False
 
     def WarnFailed(self):
