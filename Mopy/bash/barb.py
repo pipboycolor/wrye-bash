@@ -86,7 +86,6 @@ class BackupCancelled(BoltError):
 
 #------------------------------------------------------------------------------
 class BaseBackupSettings:
-    verApp = bass.AppVersion
 
     def __init__(self, parent=None, path=None, do_quit=False):
         path = GPath(path)
@@ -183,7 +182,7 @@ class BackupSettings(BaseBackupSettings):
                 cPickle.dump(self.verDat, out, -1)
                 # app version, if this doesn't match the installer app version,
                 # warn the user on restore
-                cPickle.dump(self.verApp, out, -1)
+                cPickle.dump(bass.AppVersion, out, -1)
             # create the backup archive in 7z format WITH solid compression
             # may raise StateError
             command = archives.compressCommand(self.archive, self._dir, temp_dir)
@@ -199,7 +198,8 @@ class BackupSettings(BaseBackupSettings):
         """Prompt for backup filename - return False if user cancels."""
         if self.archive is None or self._dir.join(self.archive).exists():
             filename = u'Backup Bash Settings %s (%s) v%s-%s.7z' % (
-                bush.game.fsName, bolt.timestamp(), self.verDat, self.verApp)
+                bush.game.fsName, bolt.timestamp(), self.verDat,
+                bass.AppVersion)
             if not self.quit:
                 path = askSave(self.parent, title=_(u'Backup Bash Settings'),
                                defaultDir=self._dir, defaultFile=filename,
