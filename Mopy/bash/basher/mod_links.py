@@ -994,9 +994,12 @@ class _Mod_Patch_Update(_Mod_BP_Link):
     def _ask_deactivate_mergeable(self, active_prior_to_patch):
         unfiltered, merge, noMerge, deactivate = [], [], [], []
         for mod in active_prior_to_patch:
-            tags = bosh.modInfos[mod].getBashTags()
+            mod_inf = bosh.modInfos[mod]
+            tags = mod_inf.getBashTags()
             if u'Filter' in tags: unfiltered.append(mod)
             elif mod in bosh.modInfos.mergeable:
+                if u'MustBeActiveIfImported' in tags:
+                    continue
                 if u'NoMerge' in tags: noMerge.append(mod)
                 else: merge.append(mod)
             elif u'Deactivate' in tags: deactivate.append(mod)
