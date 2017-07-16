@@ -144,7 +144,7 @@ def compressionSettings(archive, blockSize, isSolid):
 
 def compressCommand(destArchive, destDir, srcFolder, solid=u'-ms=on',
                     archiveType=u'7z'): # WIP - note solid on by default (7z)
-    return [exe7z, u'a', destDir.join(destArchive).temp.s,
+    return [exe7z, u'a', u"%s" % destDir.join(destArchive).temp.s,
             u'-t%s' % archiveType] + solid.split() + [
             u'-y', u'-r', # quiet, recursive
             u'-o"%s"' % destDir.s,
