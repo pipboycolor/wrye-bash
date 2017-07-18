@@ -3659,6 +3659,7 @@ class BashFrame(BaltFrame):
 
     @balt.conversation
     def warnTooManyModsBsas(self):
+        if bush.game.fsName != u'Oblivion': return
         if not bass.inisettings['WarnTooManyFiles']: return
         if not len(bosh.bsaInfos): bosh.bsaInfos.refresh()
         if len(bosh.bsaInfos) + len(bosh.modInfos) >= 325 and not \
