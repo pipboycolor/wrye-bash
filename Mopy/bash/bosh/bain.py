@@ -899,7 +899,7 @@ class Installer(object):
                     missing.add(filename)
                 elif sizeCrc != sizeCrcDate[:2]:
                     mismatched.add(filename)
-                    if not os.path.split(filename)[0] and bass.reModExt.search(filename):
+                    if GPath(filename) in self.espms:
                         misEspmed.add(filename)
                 if sizeCrc == ci_underrides_sizeCrc.get(filename):
                     underrides.add(filename)
