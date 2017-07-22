@@ -620,23 +620,23 @@ class Installer(object):
         for full,size,crc in self.fileSizeCrcs:
             if rootIdex: # exclude all files that are not under root_dir
                 if not full.startswith(root_path): continue
-            file = full[rootIdex:]
-            fileLower = file.lower()
+            file_relative = full[rootIdex:]
+            fileLower = file_relative.lower()
             if fileLower.startswith( # skip top level '--', 'fomod' etc
                     Installer._silentSkipsStart) or fileLower.endswith(
                     Installer._silentSkipsEnd): continue
             sub = u''
             if type_ == 2: #--Complex archive
-                split = file.split(os_sep, 1)
+                split = file_relative.split(os_sep, 1)
                 if len(split) > 1:
                     # redefine file, excluding the subpackage directory
-                    sub,file = split
-                    fileLower = file.lower()
+                    sub,file_relative = split
+                    fileLower = file_relative.lower()
                     if fileLower.startswith(Installer._silentSkipsStart):
                         continue # skip subpackage level '--', 'fomod' etc
                 if sub not in activeSubs:
                     if sub == u'':
-                        skipDirFilesAdd(file)
+                        skipDirFilesAdd(file_relative)
                     # Run a modified version of the normal checks, just
                     # looking for esp's for the wizard espmMap, wizard.txt
                     # and readme's
@@ -648,29 +648,29 @@ class Installer(object):
                     sub_esps = espmMap[sub] # add sub key to the espmMap
                     if fileLower == u'wizard.txt':
                         self.hasWizard = full
-                        skipDirFilesDiscard(file)
+                        skipDirFilesDiscard(file_relative)
                         continue
                     elif fileExt in defaultExt and (fileLower[-7:-3] == u'-bcf' or u'-bcf-' in fileLower):
                         self.hasBCF = full
-                        skipDirFilesDiscard(file)
+                        skipDirFilesDiscard(file_relative)
                         continue
                     elif fileExt in docExts and sub == u'':
                         if not self.hasReadme:
-                            if reReadMeMatch(file):
+                            if reReadMeMatch(file_relative):
                                 self.hasReadme = full
-                                skipDirFilesDiscard(file)
+                                skipDirFilesDiscard(file_relative)
                                 skip = False
                     elif fileLower in bethFiles:
                         self.hasBethFiles = True
-                        skipDirFilesDiscard(file)
-                        skipDirFilesAdd(_(u'[Bethesda Content]') + u' ' + file)
+                        skipDirFilesDiscard(file_relative)
+                        skipDirFilesAdd(_(u'[Bethesda Content]') + u' ' + file_relative)
                         continue
                     elif not rootLower and reModExtMatch(fileExt):
                         #--Remap espms as defined by the user
-                        if file in self.remaps:
-                            file = self.remaps[file]
+                        if file_relative in self.remaps:
+                            file_relative = self.remaps[file_relative]
                             # fileLower = file.lower() # not needed will skip
-                        if file not in sub_esps: sub_esps.append(file)
+                        if file_relative not in sub_esps: sub_esps.append(file_relative)
                     if skip:
                         continue
             sub_esps = espmMap[sub] # add sub key to the espmMap
@@ -691,7 +691,7 @@ class Installer(object):
             # (if not skipped globally)
             if fileExt in Installer._extensions_to_process:
                 dest = Installer._attributes_process[fileExt](
-                    self, fileLower, full, fileExt, file, sub)
+                    self, fileLower, full, fileExt, file_relative, sub)
                 if dest is None: continue
             if fileExt in global_skip_ext: continue # docs treated above
             elif fileExt in Installer._executables_process: # and handle execs
@@ -705,7 +705,7 @@ class Installer(object):
                     skipDirFilesAdd(_(u'[Bethesda Content]') + u' ' + full)
                     if sub_esps and sub_esps[-1].lower() == fileLower:
                         del sub_esps[-1] # added in extensions processing
-                        self.espms.discard(GPath(file)) #dont show in espm list
+                        self.espms.discard(GPath(file_relative)) #dont show in espm list
                     continue
             elif not hasExtraData and rootLower and rootLower not in dataDirsPlus:
                 skipDirFilesAdd(full)
@@ -717,20 +717,20 @@ class Installer(object):
                 skipExtFilesAdd(full)
                 continue
             #--Remap docs, strings
-            if dest is None: dest = file
+            if dest is None: dest = file_relative
             if rootLower in docDirs:
-                dest = os_sep.join((u'Docs', file[len(rootLower) + 1:]))
-            elif (renameStrings and fileStartsWith(u'strings' + os_sep) and
-                  fileExt in {u'.strings',u'.dlstrings',u'.ilstrings'}):
+                dest = os_sep.join((u'Docs', file_relative[len(rootLower) + 1:]))
+            elif (renameStrings and fileLower.startswith(u'strings' + os_sep)
+                  and fileExt in {u'.strings',u'.dlstrings',u'.ilstrings'}):
                 langSep = fileLower.rfind(u'_')
                 extSep = fileLower.rfind(u'.')
                 lang = fileLower[langSep+1:extSep]
                 if lang != languageLower:
-                    dest = u''.join((file[:langSep],u'_',lang,file[extSep:]))
+                    dest = u''.join((file_relative[:langSep],u'_',lang,file_relative[extSep:]))
                     # Check to ensure not overriding an already provided
                     # language file for that language
                     if dest in data_sizeCrc:
-                        dest = file
+                        dest = file_relative
             elif rootLower in dataDirsPlus:
                 pass
             elif not rootLower:
@@ -738,7 +738,7 @@ class Installer(object):
                     dest = self.packagePic = u''.join(
                         (u'Docs' + os_sep, archiveRoot, u'.package.jpg'))
                 elif fileExt in imageExts:
-                    dest = os_sep.join((u'Docs', file))
+                    dest = os_sep.join((u'Docs', file_relative))
             if fileExt in commonlyEditedExts: ##: will track all the txt files in Docs/
                 InstallersData.track(bass.dirs['mods'].join(dest))
             #--Save
