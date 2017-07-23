@@ -58,7 +58,7 @@ class Installer(object):
         'dirty_sizeCrc', 'comments', 'extras_dict', 'packageDoc', 'packagePic',
         'src_sizeCrcDate', 'hasExtraData', 'skipVoices', 'espmNots', 'isSolid',
         'blockSize', 'overrideSkips', 'remaps', 'skipRefresh', 'fileRootIdex')
-    volatile = ('data_sizeCrc', 'skipExtFiles', 'skipDirFiles', 'status',
+    volatile = ('ci_dest_sizeCrc', 'skipExtFiles', 'skipDirFiles', 'status',
         'missingFiles', 'mismatchedFiles', 'project_refreshed',
         'mismatchedEspms', 'unSize', 'espms', 'underrides', 'hasWizard',
         'espmMap', 'hasReadme', 'hasBCF', 'hasBethFiles', '_dir_dirs_files')
@@ -200,7 +200,7 @@ class Installer(object):
         self.espmMap = collections.defaultdict(list)
         self.hasReadme = False
         self.hasBethFiles = False
-        self.data_sizeCrc = bolt.LowerDict()
+        self.ci_dest_sizeCrc = bolt.LowerDict()
         self.skipExtFiles = set()
         self.skipDirFiles = set()
         self.espms = set()
@@ -551,10 +551,10 @@ class Installer(object):
         return message
 
     def refreshDataSizeCrc(self, checkOBSE=False, splitExt=os.path.splitext):
-        """Update self.data_sizeCrc and related variables and return
-        dest_src map for install operation. data_sizeCrc is a dict from paths
-        to size and crc tuples that maps paths _relative to the Data dir_ - so
-        the locations the files will end up to if installed.
+        """Update self.ci_dest_sizeCrc and related variables and return
+        dest_src map for install operation. ci_dest_sizeCrc is a dict that maps
+        CIstr paths _relative to the Data dir_ (the locations the files will
+        end up to if installed) to (size, crc) tuples.
 
         WIP rewrite
         Used:
@@ -678,7 +678,6 @@ class Installer(object):
             rootLower = rootLower.split(os_sep, 1)
             if len(rootLower) == 1: rootLower = u''
             else: rootLower = rootLower[0]
-            fileStartsWith = fileLower.startswith
             #--Skips
             for lam in skips:
                 if lam(fileLower):
@@ -746,7 +745,7 @@ class Installer(object):
             dest_src[dest] = full
             unSize += size
         self.unSize = unSize
-        (self.data_sizeCrc,old_sizeCrc) = (data_sizeCrc,self.data_sizeCrc)
+        (self.ci_dest_sizeCrc, old_sizeCrc) = (data_sizeCrc, self.ci_dest_sizeCrc)
         #--Update dirty?
         if self.isActive and data_sizeCrc != old_sizeCrc:
             dirty_sizeCrc = self.dirty_sizeCrc
@@ -879,7 +878,7 @@ class Installer(object):
         -10: missing files (red)
         -20: bad type (grey)
         """
-        data_sizeCrc = self.data_sizeCrc
+        data_sizeCrc = self.ci_dest_sizeCrc
         data_sizeCrcDate = installersData.data_sizeCrcDate
         ci_underrides_sizeCrc = installersData.ci_underrides_sizeCrc
         missing = self.missingFiles
@@ -987,7 +986,7 @@ class Installer(object):
         norm_ghost = Installer.getGhosted() # some.espm -> some.espm.ghost
         norm_ghostGet = norm_ghost.get
         data_sizeCrcDate_update = bolt.LowerDict()
-        data_sizeCrc = self.data_sizeCrc
+        data_sizeCrc = self.ci_dest_sizeCrc
         mods, inis = set(), set()
         created_dirs = set()
         srcs, dests = [], []
@@ -1270,7 +1269,7 @@ class InstallerProject(Installer):
         """Update src_sizeCrcDate cache from project directory. Used by
         _refreshSource() to populate the project's src_sizeCrcDate with
         _all_ files present in the project dir. src_sizeCrcDate is then used
-        to populate fileSizeCrcs, used to populate data_sizeCrc in
+        to populate fileSizeCrcs, used to populate ci_dest_sizeCrc in
         refreshDataSizeCrc. Compare to InstallersData._refresh_from_data_dir.
         :return: max modification time for files/folders in project directory
         :rtype: int"""
@@ -1843,7 +1842,7 @@ class InstallersData(DataStore):
         #--dict mapping all should-be-installed files to their attributes
         norm_sizeCrc = bolt.LowerDict()
         for package in active_sorted:
-            norm_sizeCrc.update(package.data_sizeCrc)
+            norm_sizeCrc.update(package.ci_dest_sizeCrc)
         #--Abnorm
         ci_underrides_sizeCrc = bolt.LowerDict()
         dataGet = self.data_sizeCrcDate.get
@@ -2125,7 +2124,7 @@ class InstallersData(DataStore):
                 and os.path.split(x)[0].lower() != u'ini tweaks')
         for relPath in dest_files:
             oldCrc = self.data_sizeCrcDate.get(relPath, (None, None, None))[1]
-            newCrc = installer.data_sizeCrc.get(relPath, (None, None))[1]
+            newCrc = installer.ci_dest_sizeCrc.get(relPath, (None, None))[1]
             if oldCrc is None or newCrc is None or newCrc == oldCrc: continue
             iniAbsDataPath = bass.dirs['mods'].join(relPath)
             # Create a copy of the old one
@@ -2201,7 +2200,7 @@ class InstallersData(DataStore):
         for installer in self.sorted_values(reverse=True):
             if installer in to_install:
                 progress(index,installer.archive)
-                destFiles = set(installer.data_sizeCrc) - mask
+                destFiles = set(installer.ci_dest_sizeCrc) - mask
                 if not override:
                     destFiles &= installer.missingFiles
                 if destFiles:
@@ -2213,7 +2212,7 @@ class InstallersData(DataStore):
                 if installer.order == min_order:
                     break # we are done
             #prevent lower packages from installing any files of this installer
-            if installer.isActive: mask |= set(installer.data_sizeCrc)
+            if installer.isActive: mask |= set(installer.ci_dest_sizeCrc)
         if tweaksCreated:
             self._editTweaks(tweaksCreated)
             refresh_ui[1] |= bool(tweaksCreated)
@@ -2365,12 +2364,12 @@ class InstallersData(DataStore):
         Returns all of the files this installer would install. Used by
         'bain_uninstall' and 'bain_anneal'."""
         # get all destination files for this installer
-        files = set(installer.data_sizeCrc)
+        files = set(installer.ci_dest_sizeCrc)
         # keep those to be removed while not restored by a higher order package
         to_keep = (removes & files) - set(restores)
         if to_keep: g_path = GPath(installer.archive)
         for dest_file in to_keep:
-            if installer.data_sizeCrc[dest_file] != \
+            if installer.ci_dest_sizeCrc[dest_file] != \
                     self.data_sizeCrcDate.get(dest_file,(0, 0, 0))[:2]:
                 # restore it from this installer
                 restores[dest_file] = g_path
@@ -2398,7 +2397,7 @@ class InstallersData(DataStore):
         for installer in self.sorted_values(reverse=True):
             #--Uninstall archive?
             if installer in unArchives:
-                for data_sizeCrc in (installer.data_sizeCrc,installer.dirty_sizeCrc):
+                for data_sizeCrc in (installer.ci_dest_sizeCrc,installer.dirty_sizeCrc):
                     for cistr_file,sizeCrc in data_sizeCrc.iteritems():
                         sizeCrcDate = data_sizeCrcDate.get(cistr_file)
                         if cistr_file not in masked and sizeCrcDate and sizeCrcDate[:2] == sizeCrc:
@@ -2479,7 +2478,7 @@ class InstallersData(DataStore):
         for installer in sorted(self.values(), key=getArchiveOrder,
                                 reverse=True):
             if installer.isActive:
-                keepFiles.update(installer.data_sizeCrc)
+                keepFiles.update(installer.ci_dest_sizeCrc)
         keepFiles.update((bolt.CIstr(f) for f in bush.game.allBethFiles))
         keepFiles.update((bolt.CIstr(f) for f in bush.game.wryeBashDataFiles))
         keepFiles.update((bolt.CIstr(f) for f in bush.game.ignoreDataFiles))
@@ -2529,14 +2528,14 @@ class InstallersData(DataStore):
         conflictsMode = (mode == 'OVER')
         if conflictsMode:
             #mismatched = srcInstaller.mismatchedFiles | srcInstaller.missingFiles
-            mismatched = set(srcInstaller.data_sizeCrc)
+            mismatched = set(srcInstaller.ci_dest_sizeCrc)
         else:
             mismatched = srcInstaller.underrides
         if not mismatched: return u''
         showInactive = conflictsMode and bass.settings['bash.installers.conflictsReport.showInactive']
         showLower = conflictsMode and bass.settings['bash.installers.conflictsReport.showLower']
         showBSA = bass.settings['bash.installers.conflictsReport.showBSAConflicts']
-        src_sizeCrc = srcInstaller.data_sizeCrc
+        src_sizeCrc = srcInstaller.ci_dest_sizeCrc
         packConflicts = []
         bsaConflicts = []
         # Calculate bsa conflicts
@@ -2548,7 +2547,7 @@ class InstallersData(DataStore):
             # Map srcInstaller's active bsas' assets to those bsas, assigning
             # the assets to the highest loading bsa - 99% we have just one bsa
             src_bsa_to_assets, src_assets = collections.OrderedDict(), set()
-            for b in sorted(_get_active_bsas(srcInstaller.data_sizeCrc),
+            for b in sorted(_get_active_bsas(srcInstaller.ci_dest_sizeCrc),
                             key=BSAInfo.active_bsa_index, reverse=True):
                 try:
                     b_assets = b.assets - src_assets
@@ -2564,7 +2563,7 @@ class InstallersData(DataStore):
                 if installer.order == srcOrder or (
                             not showInactive and not installer.isActive):
                     continue # check active installers different than src
-                for bsa_info in _get_active_bsas(installer.data_sizeCrc):
+                for bsa_info in _get_active_bsas(installer.ci_dest_sizeCrc):
                     try:
                         curAssets = bsa_info.assets
                     except BSAError:
@@ -2582,7 +2581,7 @@ class InstallersData(DataStore):
                     not showInactive and not installer.isActive): continue
             if not showLower and installer.order < srcOrder: continue
             curConflicts = bolt.sortFiles(
-                [x for x, y in installer.data_sizeCrc.iteritems()
+                [x for x, y in installer.ci_dest_sizeCrc.iteritems()
                 if x in mismatched and y != src_sizeCrc[x]])
             if curConflicts:
                 packConflicts.append((installer, package.s, curConflicts))
