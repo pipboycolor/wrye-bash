@@ -457,6 +457,13 @@ class Installer(object):
             if len(rootLower) > 1:
                 self.skipDirFiles.add(full)
                 return None # we dont want to install those files
+            bethFilesSkip = not self.overrideSkips and not bass.settings[
+                'bash.installers.autoRefreshBethsoft']
+            if fileLower in bush.game.bethDataFiles:
+                self.hasBethFiles = True
+                if bethFilesSkip:
+                    self.skipDirFiles.add(_(u'[Bethesda Content]') + u' ' + full)
+                    return None # FIXME - after renames ?
             file_relative = self.remaps.get(file_relative, file_relative)
             if file_relative not in self.espmMap[sub]: self.espmMap[
                 sub].append(file_relative)
@@ -673,7 +680,7 @@ class Installer(object):
                         if file_relative not in sub_esps: sub_esps.append(file_relative)
                     if skip:
                         continue
-            sub_esps = espmMap[sub] # add sub key to the espmMap
+            sub_esps = espmMap[sub] #add sub key to the espmMap, needed in belt
             rootLower,fileExt = splitExt(fileLower)
             rootLower = rootLower.split(os_sep, 1)
             if len(rootLower) == 1: rootLower = u''
@@ -702,9 +709,6 @@ class Installer(object):
                 self.hasBethFiles = True
                 if bethFilesSkip:
                     skipDirFilesAdd(_(u'[Bethesda Content]') + u' ' + full)
-                    if sub_esps and sub_esps[-1].lower() == fileLower:
-                        del sub_esps[-1] # added in extensions processing
-                        self.espms.discard(GPath(file_relative)) #dont show in espm list
                     continue
             elif not hasExtraData and rootLower and rootLower not in dataDirsPlus:
                 skipDirFilesAdd(full)
