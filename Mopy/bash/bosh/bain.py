@@ -43,7 +43,7 @@ from ..archives import readExts, defaultExt, list_archive, compress7z, \
 from ..bolt import Path, deprint, formatInteger, round_size, GPath, \
     sio, SubProgress
 from ..exception import AbstractError, ArgumentError, BSAError, \
-    CancelError, InstallerArchiveError, SkipError, StateError
+    CancelError, InstallerArchiveError, SkipError, StateError, FileError
 
 os_sep = unicode(os.path.sep)
 
@@ -2235,7 +2235,7 @@ class InstallersData(DataStore):
             try:
                 modInfos.add_info(mod)
                 modInfos.table.setItem(mod, 'installer', installer.archive)
-            except bolt.FileError:
+            except FileError:
                 mods.discard(mod)
         modInfos.cached_lo_append_if_missing(mods)
         # now that we saved load order update missing mtimes for mods:
